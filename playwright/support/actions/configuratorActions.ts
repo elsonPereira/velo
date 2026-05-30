@@ -1,44 +1,44 @@
 import { Page, expect } from '@playwright/test'
 
 export function createConfiguratorActions(page: Page) {
+  const optionalCheckbox = (name: string | RegExp) => page.getByRole('checkbox', { name })
+
   return {
     async open() {
       await page.goto('/configure')
-      
     },
 
-    async selectColor(colorName: string) {
-      await page.getByRole('button', { name: colorName }).click()
+    async selectColor(name: string) {
+      await page.getByRole('button', { name }).click()
     },
 
-    async selectWheels(wheelsName: string) {
-      await page.getByRole('button', { name: new RegExp(wheelsName, 'i') }).click()
+    async selectWheels(name: string | RegExp) {
+      await page.getByRole('button', { name }).click()
     },
 
-    async validateTotalPrice(price: string) {
-      const totalPrice = page.getByTestId('total-price')
-      await expect(totalPrice).toBeVisible()
-      await expect(totalPrice).toHaveText(price)
+    async expectPrice(price: string) {
+      const priceElement = page.getByTestId('total-price')
+      await expect(priceElement).toBeVisible()
+      await expect(priceElement).toHaveText(price)
     },
 
-    async validateVehicleImage(imageName: string) {
-      const vehicleImage = page.locator('img[alt^="Velô Sprint"]')
-      await expect(vehicleImage).toHaveAttribute('src', new RegExp(`${imageName}$`))
+    async expectCarImageSrc(src: string) {
+      const carImage = page.locator('img[alt^="Velô Sprint"]')
+      await expect(carImage).toHaveAttribute('src', src)
     },
 
-    /** Alterna o estado do opcional (Radix checkbox com nome acessível derivado do label). */
-    async toggleOptionalCheckbox(name: RegExp) {
-      await page.getByRole('checkbox', { name }).click()
+    async checkOptional(name: string | RegExp) {
+      await expect(optionalCheckbox(name)).toBeVisible()
+      await optionalCheckbox(name).check()
     },
 
-    async proceedToCheckout() {
+    async uncheckOptional(name: string | RegExp) {
+      await expect(optionalCheckbox(name)).toBeVisible()
+      await optionalCheckbox(name).uncheck()
+    },
+
+    async finishConfigurator() {
       await page.getByRole('button', { name: 'Monte o Seu' }).click()
-    },
-
-    async validateOrderSummaryTotal(price: string) {
-      const summaryTotal = page.getByTestId('summary-total-price')
-      await expect(summaryTotal).toBeVisible()
-      await expect(summaryTotal).toHaveText(price)
     },
   }
 }
