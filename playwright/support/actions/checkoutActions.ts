@@ -56,8 +56,36 @@ export function createCheckoutActions(page: Page) {
       await page.getByRole('button', { name: new RegExp(method, 'i') }).click()
     },
 
+    async fillDownPayment(value: string) {
+      await page.getByTestId('input-entry-value').fill(value)
+    },
+
+    async expectOrderStatus(message: string) {
+      await expect(page).toHaveURL(/\/success/)
+      await expect(page.getByRole('heading', { name: message })).toBeVisible()
+    },
+
     async submit() {
       await page.getByRole('button', { name: 'Confirmar Pedido' }).click()
     },
   }
+}
+
+export async function prepareCheckout(
+  page,
+  app,
+  customer
+) {
+  await page.goto('/')
+
+  await page
+    .getByRole('link', { name: /Configure Agora/i })
+    .click()
+
+  await app.configurator.expectPrice(customer.totalPrice)
+  await app.configurator.finishConfigurator()
+
+  await app.checkout.expectLoaded()
+  await app.checkout.fillCustomerlData(customer)
+  await app.checkout.selectStore(customer.store)
 }
