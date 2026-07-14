@@ -68,24 +68,29 @@ export function createCheckoutActions(page: Page) {
     async submit() {
       await page.getByRole('button', { name: 'Confirmar Pedido' }).click()
     },
+
+    async expectResult(status: string) {
+      await expect(page).toHaveURL(/\/success/)
+      await expect(page.getByRole('heading', { name: status })).toBeVisible()
+    }
   }
 }
 
-export async function prepareCheckout(
-  page,
-  app,
-  customer
-) {
-  await page.goto('/')
+// export async function prepareCheckout(
+//   page,
+//   app,
+//   customer
+// ) {
+//   await page.goto('/')
 
-  await page
-    .getByRole('link', { name: /Configure Agora/i })
-    .click()
+//   await page
+//     .getByRole('link', { name: /Configure Agora/i })
+//     .click()
 
-  await app.configurator.expectPrice(customer.totalPrice)
-  await app.configurator.finishConfigurator()
+//   await app.configurator.expectPrice(customer.totalPrice)
+//   await app.configurator.finishConfigurator()
 
-  await app.checkout.expectLoaded()
-  await app.checkout.fillCustomerlData(customer)
-  await app.checkout.selectStore(customer.store)
-}
+//   await app.checkout.expectLoaded()
+//   await app.checkout.fillCustomerlData(customer)
+//   await app.checkout.selectStore(customer.store)
+// }
