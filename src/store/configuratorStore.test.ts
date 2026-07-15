@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { calculateTotalPrice, calculateInstallment, formatPrice, CarConfiguration, useConfiguratorStore } from './configuratorStore';
+import { describe, it, expect } from 'vitest'
+import { calculateTotalPrice, calculateInstallment, formatPrice, CarConfiguration, useConfiguratorStore } from './configuratorStore'
 
 describe('configuratorStore pure functions', () => {
   describe('calculateTotalPrice', () => {
@@ -9,9 +9,9 @@ describe('configuratorStore pure functions', () => {
         interiorColor: 'carbon-black',
         wheelType: 'aero',
         optionals: [],
-      };
-      expect(calculateTotalPrice(config)).toBe(40000);
-    });
+      }
+      expect(calculateTotalPrice(config)).toBe(40000)
+    })
 
     it('should add sport wheels price correctly', () => {
       const config: CarConfiguration = {
@@ -19,9 +19,9 @@ describe('configuratorStore pure functions', () => {
         interiorColor: 'carbon-black',
         wheelType: 'sport',
         optionals: [],
-      };
-      expect(calculateTotalPrice(config)).toBe(42000);
-    });
+      }
+      expect(calculateTotalPrice(config)).toBe(42000)
+    })
 
     it('should add optionals price correctly', () => {
       const config: CarConfiguration = {
@@ -29,54 +29,54 @@ describe('configuratorStore pure functions', () => {
         interiorColor: 'carbon-black',
         wheelType: 'aero',
         optionals: ['precision-park', 'flux-capacitor'],
-      };
+      }
       // 40000 + 5500 + 5000 = 50500
-      expect(calculateTotalPrice(config)).toBe(50500);
-    });
-  });
+      expect(calculateTotalPrice(config)).toBe(50500)
+    })
+  })
 
   describe('calculateInstallment', () => {
     it('should calculate 12x installments with 2% monthly interest correctly', () => {
-      const total = 40000;
-      const installment = calculateInstallment(total);
-      expect(installment).toBe(3782.38);
-    });
-  });
+      const total = 40000
+      const installment = calculateInstallment(total)
+      expect(installment).toBe(3782.38)
+    })
+  })
 
   describe('formatPrice', () => {
     it('should format price correctly to BRL currency', () => {
-      const formatted = formatPrice(40000);
+      const formatted = formatPrice(40000)
       // Remove whitespace characters (including non-breaking spaces) for simpler assertion
-      expect(formatted.replace(/\s/g, '')).toBe('R$40.000,00');
-    });
-  });
-});
+      expect(formatted.replace(/\s/g, '')).toBe('R$40.000,00')
+    })
+  })
+})
 
 describe('configuratorStore actions', () => {
   it('should toggle an optional feature correctly', () => {
     // Reset state before test
-    useConfiguratorStore.getState().resetConfiguration();
+    useConfiguratorStore.getState().resetConfiguration()
 
     // Initial state has no optionals
-    expect(useConfiguratorStore.getState().configuration.optionals).toEqual([]);
+    expect(useConfiguratorStore.getState().configuration.optionals).toEqual([])
 
     // Toggle a feature (should add it)
-    useConfiguratorStore.getState().toggleOptional('precision-park');
-    expect(useConfiguratorStore.getState().configuration.optionals).toContain('precision-park');
+    useConfiguratorStore.getState().toggleOptional('precision-park')
+    expect(useConfiguratorStore.getState().configuration.optionals).toContain('precision-park')
 
     // Toggle the same feature (should remove it)
-    useConfiguratorStore.getState().toggleOptional('precision-park');
-    expect(useConfiguratorStore.getState().configuration.optionals).not.toContain('precision-park');
-  });
+    useConfiguratorStore.getState().toggleOptional('precision-park')
+    expect(useConfiguratorStore.getState().configuration.optionals).not.toContain('precision-park')
+  })
 
   it('should handle login logic depending on previous orders', () => {
-    useConfiguratorStore.setState({ orders: [] });
-    useConfiguratorStore.getState().logout();
+    useConfiguratorStore.setState({ orders: [] })
+    useConfiguratorStore.getState().logout()
 
     // Login fails if there are no orders for the email
-    const loginResult1 = useConfiguratorStore.getState().login('test@example.com');
-    expect(loginResult1).toBe(false);
-    expect(useConfiguratorStore.getState().currentUserEmail).toBeNull();
+    const loginResult1 = useConfiguratorStore.getState().login('test@example.com')
+    expect(loginResult1).toBe(false)
+    expect(useConfiguratorStore.getState().currentUserEmail).toBeNull()
 
     // Add a mock order
     useConfiguratorStore.setState({
@@ -91,11 +91,11 @@ describe('configuratorStore actions', () => {
           createdAt: new Date().toISOString()
         }
       ]
-    });
+    })
 
     // Login succeeds now
-    const loginResult2 = useConfiguratorStore.getState().login('test@example.com');
-    expect(loginResult2).toBe(true);
-    expect(useConfiguratorStore.getState().currentUserEmail).toBe('test@example.com');
-  });
-});
+    const loginResult2 = useConfiguratorStore.getState().login('test@example.com')
+    expect(loginResult2).toBe(true)
+    expect(useConfiguratorStore.getState().currentUserEmail).toBe('test@example.com')
+  })
+})
