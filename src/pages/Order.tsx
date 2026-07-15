@@ -27,6 +27,7 @@ import {
 } from '@/store/configuratorStore';
 import { createOrder } from '@/hooks/useOrders';
 import { supabase } from '@/integrations/supabase/client';
+import { onlyDigits, isValidCpf, isValidEmailStrict } from '@/lib/validators';
 
 import logo from '@/assets/brand.svg';
 import glacierBlueAero from '@/assets/glacier-blue-aero-wheels.png';
