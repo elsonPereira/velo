@@ -74,8 +74,7 @@ jobs:
       # 5. Obter as configurações do vercel
       - name: Pull Vercel Config
         run: |
-          yarn vercel pull \
-          --yes \
+          yarn vercel pull --yes \
           --environment=preview \
           --token=$VERCEL_TOKEN \
           --scope=$VERCEL_SCOPE
@@ -143,14 +142,38 @@ jobs:
 
 
   promote:
-    name: Promote to Production
+    name: Build & Deploy to Production
     needs: [build-and-deploy, e2e-tests]
     runs-on: ubuntu-latest
     
     steps:
-      - name: Vercel promote
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6.5.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Pull Vercel Config (Production)
         run: |
-          npx vercel@latest promote ${{ needs.build-and-deploy.outputs.deployment-url }} \
+          yarn vercel pull --yes \
+          --environment=production \
           --token=$VERCEL_TOKEN \
-          --scope=$VERCEL_SCOPE \
-          --yes
+          --scope=$VERCEL_SCOPE
+
+      - name: Build Vercel (Production)
+        run: yarn vercel build --prod --token=$VERCEL_TOKEN
+
+      - name: Deploy to Production
+        run: |
+          yarn vercel deploy --prebuilt --prod \
+          --token=$VERCEL_TOKEN \
+          --scope=$VERCEL_SCOPE
+
