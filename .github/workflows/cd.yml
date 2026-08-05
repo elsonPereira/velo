@@ -123,7 +123,7 @@ jobs:
 
       # 6. Baixar Variáveis de Ambiente do Preview (Para o Playwright)
       - name: Pull Vercel Preview Env
-        run: yarn vercel env pull .env --environment=preview --token=$VERCEL_TOKEN --scope=$VERCEL_SCOPE
+        run: yarn vercel env pull .env --yes --environment=preview --token=$VERCEL_TOKEN --scope=$VERCEL_SCOPE
 
       # 7. Execução dos Testes de Regressão
       - name: Run E2E Regression Tests
