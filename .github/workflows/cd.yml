@@ -121,24 +121,24 @@ jobs:
       - name: Install Playwright Browser
         run: yarn playwright install --with-deps chromium
 
-      # 6. Execução dos Testes de Regressão
+      # 6. Baixar Variáveis de Ambiente do Preview (Para o Playwright)
+      - name: Pull Vercel Preview Env
+        run: yarn vercel env pull .env --environment=preview --token=$VERCEL_TOKEN --scope=$VERCEL_SCOPE
+
+      # 7. Execução dos Testes de Regressão
       - name: Run E2E Regression Tests
         run: yarn playwright test
         env:
           BASE_URL: ${{ needs.build-and-deploy.outputs.deployment-url }}
+          TESTDINO_TOKEN: ${{ secrets.TESTDINO_TOKEN }}
       
-      # 7. Relatório de Testes Automatizados
+      # 8. Relatório de Testes Automatizados
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7.0.1
         with:
           name: playwright-report
           path: playwright-report
-      
-      # 8. Publicar report JSON do TestDino
-      - name: Publish TestDino report
-        if: ${{ !cancelled() }}
-        run: export TESTDINO_TOKEN=${{ secrets.TESTDINO_TOKEN }} yarn playwright test
 
 
   promote:
