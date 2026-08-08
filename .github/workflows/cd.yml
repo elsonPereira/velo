@@ -135,12 +135,6 @@ jobs:
           name: playwright-report
           path: playwright-report
 
-      # 8. Publicar report JSON do TestDino
-      - name: Publish TestDino report
-        if: ${{ !cancelled() }}
-        run: export TESTDINO_TOKEN=${{ secrets.TESTDINO_TOKEN }} yarn playwright test
-
-
   promote:
     name: Promote to Production
     needs: [build-and-deploy, e2e-tests]
