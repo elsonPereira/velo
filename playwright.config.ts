@@ -96,10 +96,12 @@ export default defineConfig({
     // },
   ],
 
-  /* Run your local dev server before starting the tests */
-  webServer: {
-    command: 'yarn dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
-  },
+  /* Só sobe o dev server local quando não há BASE_URL externa (ex.: preview Vercel no CI) */
+  webServer: process.env.BASE_URL
+    ? undefined
+    : {
+        command: 'yarn dev',
+        url: 'http://localhost:5173',
+        reuseExistingServer: !process.env.CI,
+      },
 });

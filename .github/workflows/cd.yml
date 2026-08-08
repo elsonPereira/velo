@@ -121,12 +121,20 @@ jobs:
       - name: Install Playwright Browser
         run: yarn playwright install --with-deps chromium
 
+      # 6. Baixa .env do Preview (inclui DATABASE_URL do Supabase de preview)
+      - name: Pull Vercel Preview Env
+        run: |
+          yarn vercel env pull .env --yes \
+          --environment=preview \
+          --token=$VERCEL_TOKEN \
+          --scope=$VERCEL_SCOPE
+
       # 7. Execução dos Testes de Regressão
       - name: Run E2E Regression Tests
         run: yarn playwright test
         env:
           BASE_URL: ${{ needs.build-and-deploy.outputs.deployment-url }}
-      
+
       # 8. Relatório de Testes Automatizados
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
@@ -135,34 +143,45 @@ jobs:
           name: playwright-report
           path: playwright-report
 
-  promote:
-    name: Promote to Production
+  # Rebuild com env de Production: VITE_* é embutida no bundle em tempo de build.
+  # vercel promote reutilizaria o artefato de preview (Supabase de preview) — inválido para prod.
+  deploy-production:
+    name: Build & Deploy Vercel Production
     needs: [build-and-deploy, e2e-tests]
     runs-on: ubuntu-latest
+    outputs:
+      deployment-url: ${{ steps.deploy.outputs.deployment-url }}
 
     steps:
-      # 1. Faz checkout do código do repositório
       - name: Checkout repository
         uses: actions/checkout@v7.0.0
 
-      # 2. Configura o ambiente Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v6.5.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      # 3. Habilita o Corepack para gerenciamento do Yarn
       - name: Enable Corepack
         run: corepack enable
 
-      # 4. Instala as dependências do projeto
       - name: Install dependencies
         run: yarn install
 
-      # 5. Promove o preview para production
-      - name: Vercel promote
+      - name: Pull Vercel Config (production)
         run: |
-          npx vercel@latest promote ${{ needs.build-and-deploy.outputs.deployment-url }} \
+          yarn vercel pull --yes \
+          --environment=production \
           --token=$VERCEL_TOKEN \
-          --scope=$VERCEL_SCOPE \
-          --yes
+          --scope=$VERCEL_SCOPE
+
+      - name: Build Vercel (production)
+        run: yarn vercel build --prod --token=$VERCEL_TOKEN
+
+      - name: Deploy production
+        id: deploy
+        run: |
+          URL=$(yarn --silent vercel deploy --prebuilt \
+          --prod \
+          --token=$VERCEL_TOKEN \
+          --scope=$VERCEL_SCOPE)
+          echo "deployment-url=$URL" >> $GITHUB_OUTPUT
