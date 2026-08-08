@@ -53,9 +53,8 @@ export default defineConfig({
     actionTimeout: 5_000,
 
 
-    // Tempo máximo para navegações como goto(), waitForURL())
-    // Quando o valor é 0, herda o limite do timeout
-    navigationTimeout: 10_000
+    // Preview Vercel pode ter cold start; 10s era curto demais no CI
+    navigationTimeout: 30_000
   },
 
   /* Configure projects for major browsers */

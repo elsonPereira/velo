@@ -23,25 +23,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Faz checkout do código do repositório
       - name: Checkout repository
         uses: actions/checkout@v7.0.0
 
-      # 2. Configura o ambiente Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v6.5.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      # 3. Habilita o Corepack para gerenciamento do Yarn
       - name: Enable Corepack
         run: corepack enable
 
-      # 4. Instala as dependências do projeto
       - name: Install dependencies
         run: yarn install
 
-      # 5. Executa os testes unitários com Vitest
       - name: Run unit tests
         run: yarn test
   
@@ -53,25 +48,20 @@ jobs:
       deployment-url: ${{ steps.deploy.outputs.deployment-url }}
     
     steps:
-      # 1. Faz checkout do código do repositório
       - name: Checkout repository
         uses: actions/checkout@v7.0.0
 
-      # 2. Configura o ambiente Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v6.5.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      # 3. Habilita o Corepack para gerenciamento do Yarn
       - name: Enable Corepack
         run: corepack enable
 
-      # 4. Instala as dependências do projeto
       - name: Install dependencies
         run: yarn install
       
-      # 5. Obter as configurações do vercel
       - name: Pull Vercel Config
         run: |
           yarn vercel pull --yes \
@@ -79,19 +69,42 @@ jobs:
           --token=$VERCEL_TOKEN \
           --scope=$VERCEL_SCOPE
 
-      # 6. Build para o Vercel
+      - name: Assert Preview Supabase env
+        run: |
+          FILE=".vercel/.env.preview.local"
+          if [ ! -f "$FILE" ]; then
+            echo "Arquivo $FILE não encontrado após vercel pull"
+            ls -la .vercel/ || true
+            exit 1
+          fi
+          for KEY in VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SUPABASE_PROJECT_ID; do
+            if ! grep -q "^${KEY}=.\+" "$FILE"; then
+              echo "::error::$KEY ausente ou vazio no ambiente Preview da Vercel"
+              exit 1
+            fi
+            echo "$KEY=ok"
+          done
+
       - name: Build Vercel
         run: yarn vercel build --token=$VERCEL_TOKEN
 
-      # 7. Deploy preview o vercel
       - name: Deploy preview
         id: deploy
         run: |
-          URL=$(yarn --silent vercel deploy --prebuilt \
-          --target=preview \
-          --token=$VERCEL_TOKEN \
-          --scope=$VERCEL_SCOPE)
-          echo "deployment-url=$URL" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          yarn --silent vercel deploy --prebuilt \
+            --target=preview \
+            --token=$VERCEL_TOKEN \
+            --scope=$VERCEL_SCOPE \
+            | tee /tmp/vercel-deploy.txt
+          URL=$(grep -Eo 'https://[a-zA-Z0-9._-]+\.vercel\.app' /tmp/vercel-deploy.txt | tail -n1)
+          if [ -z "$URL" ]; then
+            echo "::error::Não foi possível extrair a URL do deploy preview"
+            cat /tmp/vercel-deploy.txt
+            exit 1
+          fi
+          echo "Preview URL: $URL"
+          echo "deployment-url=$URL" >> "$GITHUB_OUTPUT"
 
   e2e-tests:
     name: Run E2E Tests
@@ -99,29 +112,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Faz checkout do código do repositório
       - name: Checkout repository
         uses: actions/checkout@v7.0.0
 
-      # 2. Configura o ambiente Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v6.5.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      # 3. Habilita o Corepack para gerenciamento do Yarn
       - name: Enable Corepack
         run: corepack enable
 
-      # 4. Instala as dependências do projeto
       - name: Install dependencies
         run: yarn install
 
-      # 5. Instalação do Chromium
       - name: Install Playwright Browser
         run: yarn playwright install --with-deps chromium
 
-      # 6. Baixa .env do Preview (inclui DATABASE_URL do Supabase de preview)
       - name: Pull Vercel Preview Env
         run: |
           yarn vercel env pull .env --yes \
@@ -129,13 +136,35 @@ jobs:
           --token=$VERCEL_TOKEN \
           --scope=$VERCEL_SCOPE
 
-      # 7. Execução dos Testes de Regressão
+      - name: Assert E2E DATABASE_URL
+        run: |
+          if ! grep -q '^DATABASE_URL=.\+' .env; then
+            echo "::error::DATABASE_URL ausente no ambiente Preview da Vercel (necessária para insert/delete nos E2E)"
+            exit 1
+          fi
+          echo "DATABASE_URL=ok"
+
+      - name: Wait for Preview
+        run: |
+          URL="${{ needs.build-and-deploy.outputs.deployment-url }}"
+          echo "Aguardando $URL"
+          for i in $(seq 1 30); do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL" || true)
+            if [ "$CODE" = "200" ]; then
+              echo "Preview respondeu 200"
+              exit 0
+            fi
+            echo "tentativa $i: HTTP $CODE"
+            sleep 2
+          done
+          echo "::error::Preview não respondeu 200 a tempo"
+          exit 1
+
       - name: Run E2E Regression Tests
         run: yarn playwright test
         env:
           BASE_URL: ${{ needs.build-and-deploy.outputs.deployment-url }}
 
-      # 8. Relatório de Testes Automatizados
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7.0.1
@@ -174,14 +203,39 @@ jobs:
           --token=$VERCEL_TOKEN \
           --scope=$VERCEL_SCOPE
 
+      - name: Assert Production Supabase env
+        run: |
+          FILE=".vercel/.env.production.local"
+          if [ ! -f "$FILE" ]; then
+            echo "Arquivo $FILE não encontrado após vercel pull"
+            ls -la .vercel/ || true
+            exit 1
+          fi
+          for KEY in VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SUPABASE_PROJECT_ID; do
+            if ! grep -q "^${KEY}=.\+" "$FILE"; then
+              echo "::error::$KEY ausente ou vazio no ambiente Production da Vercel"
+              exit 1
+            fi
+            echo "$KEY=ok"
+          done
+
       - name: Build Vercel (production)
         run: yarn vercel build --prod --token=$VERCEL_TOKEN
 
       - name: Deploy production
         id: deploy
         run: |
-          URL=$(yarn --silent vercel deploy --prebuilt \
-          --prod \
-          --token=$VERCEL_TOKEN \
-          --scope=$VERCEL_SCOPE)
-          echo "deployment-url=$URL" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          yarn --silent vercel deploy --prebuilt \
+            --prod \
+            --token=$VERCEL_TOKEN \
+            --scope=$VERCEL_SCOPE \
+            | tee /tmp/vercel-deploy.txt
+          URL=$(grep -Eo 'https://[a-zA-Z0-9._-]+\.vercel\.app' /tmp/vercel-deploy.txt | tail -n1)
+          if [ -z "$URL" ]; then
+            echo "::error::Não foi possível extrair a URL do deploy production"
+            cat /tmp/vercel-deploy.txt
+            exit 1
+          fi
+          echo "Production URL: $URL"
+          echo "deployment-url=$URL" >> "$GITHUB_OUTPUT"
