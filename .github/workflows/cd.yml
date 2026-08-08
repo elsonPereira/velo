@@ -121,16 +121,11 @@ jobs:
       - name: Install Playwright Browser
         run: yarn playwright install --with-deps chromium
 
-      # 6. Baixar Variáveis de Ambiente do Preview (Para o Playwright)
-      - name: Pull Vercel Preview Env
-        run: yarn vercel env pull .env --yes --environment=preview --token=$VERCEL_TOKEN --scope=$VERCEL_SCOPE
-
       # 7. Execução dos Testes de Regressão
       - name: Run E2E Regression Tests
         run: yarn playwright test
         env:
           BASE_URL: ${{ needs.build-and-deploy.outputs.deployment-url }}
-          TESTDINO_TOKEN: ${{ secrets.TESTDINO_TOKEN }}
       
       # 8. Relatório de Testes Automatizados
       - name: Upload Playwright report
@@ -140,40 +135,41 @@ jobs:
           name: playwright-report
           path: playwright-report
 
+      # 8. Publicar report JSON do TestDino
+      - name: Publish TestDino report
+        if: ${{ !cancelled() }}
+        run: export TESTDINO_TOKEN=${{ secrets.TESTDINO_TOKEN }} yarn playwright test
+
 
   promote:
-    name: Build & Deploy to Production
+    name: Promote to Production
     needs: [build-and-deploy, e2e-tests]
     runs-on: ubuntu-latest
-    
+
     steps:
+    steps:
+      # 1. Faz checkout do código do repositório
       - name: Checkout repository
         uses: actions/checkout@v7.0.0
 
+      # 2. Configura o ambiente Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v6.5.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      # 3. Habilita o Corepack para gerenciamento do Yarn
       - name: Enable Corepack
         run: corepack enable
 
+      # 4. Instala as dependências do projeto
       - name: Install dependencies
         run: yarn install
 
-      - name: Pull Vercel Config (Production)
+      # 5. Promove o preview para production
+      - name: Vercel promote
         run: |
-          yarn vercel pull --yes \
-          --environment=production \
+          npx vercel@latest promote ${{ needs.build-and-deploy.outputs.deployment-url }} \
           --token=$VERCEL_TOKEN \
-          --scope=$VERCEL_SCOPE
-
-      - name: Build Vercel (Production)
-        run: yarn vercel build --prod --token=$VERCEL_TOKEN
-
-      - name: Deploy to Production
-        run: |
-          yarn vercel deploy --prebuilt --prod \
-          --token=$VERCEL_TOKEN \
-          --scope=$VERCEL_SCOPE
-
+          --scope=$VERCEL_SCOPE \
+          --yes
