@@ -71,7 +71,16 @@ jobs:
       - name: Install dependencies
         run: yarn install
       
-      # 5. Obter as configurações do vercel
+      # 4.2 Link do projeto no Vercel
+      - name: Link Vercel Project
+        run: |
+          yarn vercel link \
+          --yes \
+          --project=$VERCEL_PROJECT_ID \
+          --scope=$VERCEL_SCOPE \
+          --token=$VERCEL_TOKEN
+      
+      # 5. Pull para obter as configurações do vercel
       - name: Pull Vercel Config
         run: |
           yarn vercel pull \
@@ -80,16 +89,29 @@ jobs:
           --token=$VERCEL_TOKEN \
           --scope=$VERCEL_SCOPE
 
+      # 5.2 Debug - Verificação do .vercel
+      - name: Inspect Vercel configuration
+        run: |
+          echo "Vercel configuration:"
+          cat .vercel/project.json
+          echo ""
+          echo "Environment files:"
+          find .vercel -maxdepth 3 -type f -print
+
       # 6. Build para o Vercel
       - name: Build Vercel
-        run: yarn vercel build --token=$VERCEL_TOKEN
+        run: |
+          yarn vercel build \
+          --token=$VERCEL_TOKEN \
+          --scope=$VERCEL_SCOPE
 
       # 7. Deploy preview o vercel
+      # URL=$(yarn --silent vercel deploy --prebuilt \
+      # --target=preview \
       - name: Deploy preview
         id: deploy
         run: |
-          URL=$(yarn --silent vercel deploy --prebuilt \
-          --target=preview \
+          URL=$(yarn --silent vercel deploy \
           --token=$VERCEL_TOKEN \
           --scope=$VERCEL_SCOPE)
           echo "deployment-url=$URL" >> $GITHUB_OUTPUT
@@ -122,11 +144,20 @@ jobs:
       - name: Install Playwright Browser
         run: yarn playwright install --with-deps chromium
 
-      # 6. Execução dos Testes de Regressão
-      - name: Run E2E Regression Tests
-        run: yarn playwright test playwright/e2e/online.spec.ts
+      # 5.2 Checar a preview URL
+      - name: Check Preview URL
+        run: |
+          echo "BASE_URL=$BASE_URL"
+          curl -I --fail "$BASE_URL"
         env:
           BASE_URL: ${{ needs.build-and-deploy.outputs.deployment-url }}
+
+      # 6. Execução dos Testes de Regressão
+      - name: Run E2E Regression Tests
+        run: yarn playwright test playwright/e2e/pedidos.spec.ts
+        env:
+          BASE_URL: ${{ needs.build-and-deploy.outputs.deployment-url }}
+          TESTDINO_TOKEN: ${{ secrets.TESTDINO_TOKEN }}
       
       # 7. Relatório de Testes Automatizados
       - name: Upload Playwright report
@@ -137,9 +168,9 @@ jobs:
           path: playwright-report
       
       # 8. Publicar report JSON do TestDino
-      - name: Publish TestDino report
-        if: ${{ !cancelled() }}
-        run: export TESTDINO_TOKEN=${{ secrets.TESTDINO_TOKEN }} yarn playwright test
+      # - name: Publish TestDino report
+      #   if: ${{ !cancelled() }}
+      #   run: export TESTDINO_TOKEN=${{ secrets.TESTDINO_TOKEN }} yarn playwright test
 
 
   promote:
