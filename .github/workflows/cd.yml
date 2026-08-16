@@ -173,9 +173,9 @@ jobs:
       #   run: export TESTDINO_TOKEN=${{ secrets.TESTDINO_TOKEN }} yarn playwright test
 
 
-  promote:
-    name: Promote to Production
-    needs: [build-and-deploy, e2e-tests]
+  production-deploy:
+    name: Build & Deploy Production
+    needs: [e2e-tests]
     runs-on: ubuntu-latest
     
     steps:
@@ -226,7 +226,7 @@ jobs:
       # 8. Deploy production
       - name: Deploy Production
         run: |
-          yarn vercel deploy \
+          yarn --silent vercel deploy \
           --prebuilt \
           --prod \
           --token=$VERCEL_TOKEN \
