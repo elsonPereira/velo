@@ -15,7 +15,6 @@ env:
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_SCOPE: brito-d-elson
-  TESTDINO_TOKEN: ${{ secrets.TESTDINO_TOKEN }}
 
 jobs:
   unit-tests:
@@ -158,6 +157,7 @@ jobs:
         env:
           BASE_URL: ${{ needs.build-and-deploy.outputs.deployment-url }}
           TESTDINO_TOKEN: ${{ secrets.TESTDINO_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
       
       # 7. Relatório de Testes Automatizados
       - name: Upload Playwright report
@@ -179,9 +179,55 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Vercel promote
+      # 1. Faz checkout do código do repositório
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.0
+      
+      # 2. Configura o ambiente Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v6.5.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      # 3. Habilita o Corepack para gerenciamento do Yarn
+      - name: Enable Corepack
+        run: corepack enable
+      
+      # 4. Instala as dependências do projeto
+      - name: Install dependencies
+        run: yarn install
+      
+      # 5. Link do projeto no Vercel
+      - name: Link Vercel Project
         run: |
-          npx vercel@latest promote ${{ needs.build-and-deploy.outputs.deployment-url }} \
-          --token=$VERCEL_TOKEN \
+          yarn vercel link \
+          --yes \
+          --project=$VERCEL_PROJECT_ID \
           --scope=$VERCEL_SCOPE \
-          --yes
+          --token=$VERCEL_TOKEN
+      
+      # 6. Pull para obter as configurações do vercel
+      - name: Pull Production Environment
+        run: |
+          yarn vercel pull \
+          --yes \
+          --environment=production \
+          --scope=$VERCEL_SCOPE \
+          --token=$VERCEL_TOKEN
+
+      # 7. Build para o Vercel
+      - name: Build Production
+        run: |
+          yarn vercel build \
+          --prod \
+          --token=$VERCEL_TOKEN \
+          --scope=$VERCEL_SCOPE
+
+      # 8. Deploy production
+      - name: Deploy Production
+        run: |
+          yarn vercel deploy \
+          --prebuilt \
+          --prod \
+          --token=$VERCEL_TOKEN \
+          --scope=$VERCEL_SCOPE
